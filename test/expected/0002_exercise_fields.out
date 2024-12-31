@@ -1,0 +1,804 @@
+begin;
+---------------------------------------------
+-- drop and recreate the schema for a clean test run
+---------------------------------------------
+drop schema if exists minimal_test cascade;
+NOTICE:  schema "minimal_test" does not exist, skipping
+create schema minimal_test;
+set search_path to minimal_test;
+---------------------------------------------
+-- 1) extension (skip uuid-ossp; keep file_fdw)
+---------------------------------------------
+create extension if not exists file_fdw;
+comment on extension file_fdw is 'file-based foreign data wrapper';
+---------------------------------------------
+-- 2) user-defined types
+---------------------------------------------
+-- enum type
+create type my_enum as enum ('option_a', 'option_b');
+comment on type my_enum is 'enum type example';
+-- composite type
+create type my_composite as (
+    col1 int,
+    col2 text
+);
+comment on type my_composite is 'composite type example';
+-- domain
+create domain my_domain as int
+    check (value > 0);
+comment on domain my_domain is 'domain example';
+---------------------------------------------
+-- 3) sequence
+---------------------------------------------
+create sequence my_sequence
+    start 1
+    increment 1
+    minvalue 1
+    cache 1;
+comment on sequence my_sequence is 'sequence example';
+---------------------------------------------
+-- 4) tables
+---------------------------------------------
+create table parent_table (
+    id serial primary key,               -- automatically creates index + constraint
+    val text not null unique,
+    my_col my_enum default 'option_a' not null,
+    check (length(val) > 0)
+);
+comment on table parent_table is 'parent table example';
+comment on column parent_table.id is 'id primary key';
+comment on column parent_table.val is 'value column';
+comment on column parent_table.my_col is 'enum column';
+-- enable row-level security + sample policy
+alter table parent_table enable row level security;
+create policy parent_table_policy
+on parent_table
+for select
+to public
+using (true);
+comment on policy parent_table_policy on parent_table is 'row-level security policy';
+create table child_table (
+    id int not null default nextval('my_sequence'),
+    parent_id int references parent_table (id),
+    val text,
+    some_data my_domain,
+    constraint child_pk primary key (id),
+    constraint child_val_not_empty check (length(val) > 0)
+);
+comment on table child_table is 'child table example';
+comment on column child_table.id is 'id using sequence';
+comment on column child_table.parent_id is 'foreign key to parent_table';
+comment on column child_table.val is 'value column';
+comment on column child_table.some_data is 'this is a column comment.';
+comment on constraint child_pk on child_table is 'child table primary key';
+comment on constraint child_val_not_empty on child_table is 'child table check constraint';
+-- add an index
+create index child_val_idx on child_table (val);
+comment on index child_val_idx is 'index on child_table.val';
+---------------------------------------------
+-- 5) views
+---------------------------------------------
+create view parent_table_view as
+select id, val, my_col
+from parent_table
+where length(val) > 1;
+comment on view parent_table_view is 'simple view of parent_table';
+---------------------------------------------
+-- 6) materialized views
+---------------------------------------------
+create materialized view parent_table_matview as
+select id, val
+from parent_table
+where length(val) > 1;
+comment on materialized view parent_table_matview is 'materialized view of parent_table';
+---------------------------------------------
+-- 7) aggregates
+---------------------------------------------
+create function my_agg_step(state integer, next_value integer)
+returns integer
+language sql
+as $$
+    select state + next_value;
+$$;
+comment on function my_agg_step(integer, integer) is 'aggregate step function';
+create function my_agg_final(state integer)
+returns integer
+language sql
+as $$
+    select state;
+$$;
+comment on function my_agg_final(integer) is 'aggregate final function';
+create aggregate my_agg(integer) (
+    sfunc = my_agg_step,
+    stype = integer,
+    finalfunc = my_agg_final,
+    initcond = 0
+);
+comment on aggregate my_agg(integer) is 'custom integer aggregator';
+---------------------------------------------
+-- 8) procedures
+---------------------------------------------
+create procedure my_procedure(arg_val text)
+language plpgsql
+as $$
+begin
+    raise notice 'argument passed: %', arg_val;
+end;
+$$;
+comment on procedure my_procedure(text) is 'example procedure';
+---------------------------------------------
+-- 9) trigger function & trigger
+---------------------------------------------
+create function my_trigger_function()
+returns trigger
+language plpgsql
+as $$
+begin
+    -- simple example: just return the row
+    return new;
+end;
+$$;
+comment on function my_trigger_function() is 'trigger function example';
+create trigger my_row_trigger
+before insert on child_table
+for each row
+execute procedure my_trigger_function();
+comment on trigger my_row_trigger on child_table is 'trigger example';
+---------------------------------------------
+-- 10) foreign table (file_fdw)
+---------------------------------------------
+create server test_file_server
+foreign data wrapper file_fdw;
+comment on server test_file_server is 'file fdw server example';
+create foreign table my_foreign_table (
+    col1 int,
+    col2 text
+)
+server test_file_server
+options (filename '/tmp/my_data.csv', format 'csv');
+comment on foreign table my_foreign_table is 'foreign table example';
+---------------------------------------------
+-- 11) event trigger
+---------------------------------------------
+create function my_event_trigger_function()
+returns event_trigger
+language plpgsql
+as $$
+begin
+    -- do nothing for now
+end;
+$$;
+comment on function my_event_trigger_function() is 'event trigger function example';
+create event trigger my_event_trigger
+on ddl_command_start
+execute procedure my_event_trigger_function();
+comment on event trigger my_event_trigger is 'event trigger example';
+---------------------------------------------
+-- 12) publications
+---------------------------------------------
+create publication my_publication
+for table parent_table;
+WARNING:  wal_level is insufficient to publish logical changes
+HINT:  Set wal_level to "logical" before creating subscriptions.
+comment on publication my_publication is 'example publication';
+select jsonb_pretty(public.get_context());
+                                                                jsonb_pretty                                                                 
+---------------------------------------------------------------------------------------------------------------------------------------------
+ {                                                                                                                                          +
+     "databases": [                                                                                                                         +
+         {                                                                                                                                  +
+             "name": "contrib_regression",                                                                                                  +
+             "schemas": [                                                                                                                   +
+                 {                                                                                                                          +
+                     "name": "minimal_test",                                                                                                +
+                     "types": [                                                                                                             +
+                         {                                                                                                                  +
+                             "name": "my_enum",                                                                                             +
+                             "comment": "enum type example",                                                                                +
+                             "type_kind": "enum",                                                                                           +
+                             "enum_variants": [                                                                                             +
+                                 "option_a",                                                                                                +
+                                 "option_b"                                                                                                 +
+                             ],                                                                                                             +
+                             "domain_base_type": null,                                                                                      +
+                             "domain_constraints": [                                                                                        +
+                             ]                                                                                                              +
+                         },                                                                                                                 +
+                         {                                                                                                                  +
+                             "name": "my_domain",                                                                                           +
+                             "comment": "domain example",                                                                                   +
+                             "type_kind": "domain",                                                                                         +
+                             "enum_variants": [                                                                                             +
+                             ],                                                                                                             +
+                             "domain_base_type": "integer",                                                                                 +
+                             "domain_constraints": [                                                                                        +
+                                 {                                                                                                          +
+                                     "name": "my_domain_check",                                                                             +
+                                     "definition": "CHECK ((VALUE > 0))"                                                                    +
+                                 }                                                                                                          +
+                             ]                                                                                                              +
+                         }                                                                                                                  +
+                     ],                                                                                                                     +
+                     "views": [                                                                                                             +
+                         {                                                                                                                  +
+                             "name": "parent_table_view",                                                                                   +
+                             "columns": [                                                                                                   +
+                                 {                                                                                                          +
+                                     "name": "id",                                                                                          +
+                                     "type": "integer",                                                                                     +
+                                     "comment": null,                                                                                       +
+                                     "default": null,                                                                                       +
+                                     "has_default": false,                                                                                  +
+                                     "is_nullable": true                                                                                    +
+                                 },                                                                                                         +
+                                 {                                                                                                          +
+                                     "name": "val",                                                                                         +
+                                     "type": "text",                                                                                        +
+                                     "comment": null,                                                                                       +
+                                     "default": null,                                                                                       +
+                                     "has_default": false,                                                                                  +
+                                     "is_nullable": true                                                                                    +
+                                 },                                                                                                         +
+                                 {                                                                                                          +
+                                     "name": "my_col",                                                                                      +
+                                     "type": "minimal_test.my_enum",                                                                        +
+                                     "comment": null,                                                                                       +
+                                     "default": null,                                                                                       +
+                                     "has_default": false,                                                                                  +
+                                     "is_nullable": true                                                                                    +
+                                 }                                                                                                          +
+                             ],                                                                                                             +
+                             "comment": "simple view of parent_table",                                                                      +
+                             "security_definer": false                                                                                      +
+                         }                                                                                                                  +
+                     ],                                                                                                                     +
+                     "tables": [                                                                                                            +
+                         {                                                                                                                  +
+                             "name": "parent_table",                                                                                        +
+                             "columns": [                                                                                                   +
+                                 {                                                                                                          +
+                                     "name": "id",                                                                                          +
+                                     "type": "integer",                                                                                     +
+                                     "comment": "id primary key",                                                                           +
+                                     "default": "nextval('minimal_test.parent_table_id_seq'::regclass)",                                    +
+                                     "has_default": true,                                                                                   +
+                                     "is_nullable": false                                                                                   +
+                                 },                                                                                                         +
+                                 {                                                                                                          +
+                                     "name": "val",                                                                                         +
+                                     "type": "text",                                                                                        +
+                                     "comment": "value column",                                                                             +
+                                     "default": null,                                                                                       +
+                                     "has_default": false,                                                                                  +
+                                     "is_nullable": false                                                                                   +
+                                 },                                                                                                         +
+                                 {                                                                                                          +
+                                     "name": "my_col",                                                                                      +
+                                     "type": "minimal_test.my_enum",                                                                        +
+                                     "comment": "enum column",                                                                              +
+                                     "default": "'option_a'::minimal_test.my_enum",                                                         +
+                                     "has_default": true,                                                                                   +
+                                     "is_nullable": false                                                                                   +
+                                 }                                                                                                          +
+                             ],                                                                                                             +
+                             "comment": "parent table example",                                                                             +
+                             "indexes": [                                                                                                   +
+                                 {                                                                                                          +
+                                     "name": "parent_table_pkey",                                                                           +
+                                     "comment": null,                                                                                       +
+                                     "definition": "CREATE UNIQUE INDEX parent_table_pkey ON minimal_test.parent_table USING btree (id)"    +
+                                 },                                                                                                         +
+                                 {                                                                                                          +
+                                     "name": "parent_table_val_key",                                                                        +
+                                     "comment": null,                                                                                       +
+                                     "definition": "CREATE UNIQUE INDEX parent_table_val_key ON minimal_test.parent_table USING btree (val)"+
+                                 }                                                                                                          +
+                             ],                                                                                                             +
+                             "policies": [                                                                                                  +
+                                 {                                                                                                          +
+                                     "cmd": "SELECT",                                                                                       +
+                                     "name": "parent_table_policy",                                                                         +
+                                     "qual": "true",                                                                                        +
+                                     "roles": [                                                                                             +
+                                         "public"                                                                                           +
+                                     ],                                                                                                     +
+                                     "permissive": "PERMISSIVE",                                                                            +
+                                     "with_check": null                                                                                     +
+                                 }                                                                                                          +
+                             ],                                                                                                             +
+                             "constraints": [                                                                                               +
+                                 {                                                                                                          +
+                                     "name": "parent_table_pkey",                                                                           +
+                                     "type": "p",                                                                                           +
+                                     "comment": null,                                                                                       +
+                                     "definition": "PRIMARY KEY (id)"                                                                       +
+                                 },                                                                                                         +
+                                 {                                                                                                          +
+                                     "name": "parent_table_val_check",                                                                      +
+                                     "type": "c",                                                                                           +
+                                     "comment": null,                                                                                       +
+                                     "definition": "CHECK ((length(val) > 0))"                                                              +
+                                 },                                                                                                         +
+                                 {                                                                                                          +
+                                     "name": "parent_table_val_key",                                                                        +
+                                     "type": "u",                                                                                           +
+                                     "comment": null,                                                                                       +
+                                     "definition": "UNIQUE (val)"                                                                           +
+                                 }                                                                                                          +
+                             ],                                                                                                             +
+                             "foreign_keys": [                                                                                              +
+                             ]                                                                                                              +
+                         },                                                                                                                 +
+                         {                                                                                                                  +
+                             "name": "child_table",                                                                                         +
+                             "columns": [                                                                                                   +
+                                 {                                                                                                          +
+                                     "name": "id",                                                                                          +
+                                     "type": "integer",                                                                                     +
+                                     "comment": "id using sequence",                                                                        +
+                                     "default": "nextval('minimal_test.my_sequence'::regclass)",                                            +
+                                     "has_default": true,                                                                                   +
+                                     "is_nullable": false                                                                                   +
+                                 },                                                                                                         +
+                                 {                                                                                                          +
+                                     "name": "parent_id",                                                                                   +
+                                     "type": "integer",                                                                                     +
+                                     "comment": "foreign key to parent_table",                                                              +
+                                     "default": null,                                                                                       +
+                                     "has_default": false,                                                                                  +
+                                     "is_nullable": true                                                                                    +
+                                 },                                                                                                         +
+                                 {                                                                                                          +
+                                     "name": "val",                                                                                         +
+                                     "type": "text",                                                                                        +
+                                     "comment": "value column",                                                                             +
+                                     "default": null,                                                                                       +
+                                     "has_default": false,                                                                                  +
+                                     "is_nullable": true                                                                                    +
+                                 },                                                                                                         +
+                                 {                                                                                                          +
+                                     "name": "some_data",                                                                                   +
+                                     "type": "minimal_test.my_domain",                                                                      +
+                                     "comment": "this is a column comment.",                                                                +
+                                     "default": null,                                                                                       +
+                                     "has_default": false,                                                                                  +
+                                     "is_nullable": true                                                                                    +
+                                 }                                                                                                          +
+                             ],                                                                                                             +
+                             "comment": "child table example",                                                                              +
+                             "indexes": [                                                                                                   +
+                                 {                                                                                                          +
+                                     "name": "child_pk",                                                                                    +
+                                     "comment": null,                                                                                       +
+                                     "definition": "CREATE UNIQUE INDEX child_pk ON minimal_test.child_table USING btree (id)"              +
+                                 },                                                                                                         +
+                                 {                                                                                                          +
+                                     "name": "child_val_idx",                                                                               +
+                                     "comment": "index on child_table.val",                                                                 +
+                                     "definition": "CREATE INDEX child_val_idx ON minimal_test.child_table USING btree (val)"               +
+                                 }                                                                                                          +
+                             ],                                                                                                             +
+                             "policies": [                                                                                                  +
+                             ],                                                                                                             +
+                             "constraints": [                                                                                               +
+                                 {                                                                                                          +
+                                     "name": "child_pk",                                                                                    +
+                                     "type": "p",                                                                                           +
+                                     "comment": "child table primary key",                                                                  +
+                                     "definition": "PRIMARY KEY (id)"                                                                       +
+                                 },                                                                                                         +
+                                 {                                                                                                          +
+                                     "name": "child_val_not_empty",                                                                         +
+                                     "type": "c",                                                                                           +
+                                     "comment": "child table check constraint",                                                             +
+                                     "definition": "CHECK ((length(val) > 0))"                                                              +
+                                 }                                                                                                          +
+                             ],                                                                                                             +
+                             "foreign_keys": [                                                                                              +
+                                 {                                                                                                          +
+                                     "name": "child_table_parent_id_fkey",                                                                  +
+                                     "comment": null,                                                                                       +
+                                     "definition": "FOREIGN KEY (parent_id) REFERENCES minimal_test.parent_table(id)"                       +
+                                 }                                                                                                          +
+                             ]                                                                                                              +
+                         }                                                                                                                  +
+                     ],                                                                                                                     +
+                     "aggregates": [                                                                                                        +
+                         {                                                                                                                  +
+                             "name": "my_agg",                                                                                              +
+                             "comment": "custom integer aggregator"                                                                         +
+                         }                                                                                                                  +
+                     ],                                                                                                                     +
+                     "procedures": [                                                                                                        +
+                         {                                                                                                                  +
+                             "name": "my_procedure",                                                                                        +
+                             "comment": "example procedure",                                                                                +
+                             "argument_types": [                                                                                            +
+                                 "text"                                                                                                     +
+                             ]                                                                                                              +
+                         }                                                                                                                  +
+                     ],                                                                                                                     +
+                     "foreign_tables": [                                                                                                    +
+                         {                                                                                                                  +
+                             "name": "my_foreign_table",                                                                                    +
+                             "columns": [                                                                                                   +
+                                 {                                                                                                          +
+                                     "name": "col1",                                                                                        +
+                                     "type": "integer",                                                                                     +
+                                     "comment": null,                                                                                       +
+                                     "default": null,                                                                                       +
+                                     "has_default": false,                                                                                  +
+                                     "is_nullable": true                                                                                    +
+                                 },                                                                                                         +
+                                 {                                                                                                          +
+                                     "name": "col2",                                                                                        +
+                                     "type": "text",                                                                                        +
+                                     "comment": null,                                                                                       +
+                                     "default": null,                                                                                       +
+                                     "has_default": false,                                                                                  +
+                                     "is_nullable": true                                                                                    +
+                                 }                                                                                                          +
+                             ],                                                                                                             +
+                             "comment": "foreign table example"                                                                             +
+                         }                                                                                                                  +
+                     ],                                                                                                                     +
+                     "trigger_functions": [                                                                                                 +
+                         {                                                                                                                  +
+                             "name": "my_trigger_function",                                                                                 +
+                             "comment": "trigger function example"                                                                          +
+                         }                                                                                                                  +
+                     ],                                                                                                                     +
+                     "materialized_views": [                                                                                                +
+                         {                                                                                                                  +
+                             "name": "parent_table_matview",                                                                                +
+                             "columns": [                                                                                                   +
+                                 {                                                                                                          +
+                                     "name": "id",                                                                                          +
+                                     "type": "integer",                                                                                     +
+                                     "comment": null,                                                                                       +
+                                     "default": null,                                                                                       +
+                                     "has_default": false,                                                                                  +
+                                     "is_nullable": true                                                                                    +
+                                 },                                                                                                         +
+                                 {                                                                                                          +
+                                     "name": "val",                                                                                         +
+                                     "type": "text",                                                                                        +
+                                     "comment": null,                                                                                       +
+                                     "default": null,                                                                                       +
+                                     "has_default": false,                                                                                  +
+                                     "is_nullable": true                                                                                    +
+                                 }                                                                                                          +
+                             ],                                                                                                             +
+                             "comment": "materialized view of parent_table"                                                                 +
+                         }                                                                                                                  +
+                     ]                                                                                                                      +
+                 },                                                                                                                         +
+                 {                                                                                                                          +
+                     "name": "public",                                                                                                      +
+                     "types": [                                                                                                             +
+                     ],                                                                                                                     +
+                     "views": [                                                                                                             +
+                     ],                                                                                                                     +
+                     "tables": [                                                                                                            +
+                     ],                                                                                                                     +
+                     "aggregates": [                                                                                                        +
+                     ],                                                                                                                     +
+                     "procedures": [                                                                                                        +
+                     ],                                                                                                                     +
+                     "foreign_tables": [                                                                                                    +
+                     ],                                                                                                                     +
+                     "trigger_functions": [                                                                                                 +
+                     ],                                                                                                                     +
+                     "materialized_views": [                                                                                                +
+                     ]                                                                                                                      +
+                 }                                                                                                                          +
+             ],                                                                                                                             +
+             "extensions": [                                                                                                                +
+                 {                                                                                                                          +
+                     "name": "adminpack",                                                                                                   +
+                     "schema": null,                                                                                                        +
+                     "installed": false,                                                                                                    +
+                     "available_version": "2.1",                                                                                            +
+                     "installed_version": null                                                                                              +
+                 },                                                                                                                         +
+                 {                                                                                                                          +
+                     "name": "amcheck",                                                                                                     +
+                     "schema": null,                                                                                                        +
+                     "installed": false,                                                                                                    +
+                     "available_version": "1.3",                                                                                            +
+                     "installed_version": null                                                                                              +
+                 },                                                                                                                         +
+                 {                                                                                                                          +
+                     "name": "autoinc",                                                                                                     +
+                     "schema": null,                                                                                                        +
+                     "installed": false,                                                                                                    +
+                     "available_version": "1.0",                                                                                            +
+                     "installed_version": null                                                                                              +
+                 },                                                                                                                         +
+                 {                                                                                                                          +
+                     "name": "bloom",                                                                                                       +
+                     "schema": null,                                                                                                        +
+                     "installed": false,                                                                                                    +
+                     "available_version": "1.0",                                                                                            +
+                     "installed_version": null                                                                                              +
+                 },                                                                                                                         +
+                 {                                                                                                                          +
+                     "name": "btree_gin",                                                                                                   +
+                     "schema": null,                                                                                                        +
+                     "installed": false,                                                                                                    +
+                     "available_version": "1.3",                                                                                            +
+                     "installed_version": null                                                                                              +
+                 },                                                                                                                         +
+                 {                                                                                                                          +
+                     "name": "btree_gist",                                                                                                  +
+                     "schema": null,                                                                                                        +
+                     "installed": false,                                                                                                    +
+                     "available_version": "1.7",                                                                                            +
+                     "installed_version": null                                                                                              +
+                 },                                                                                                                         +
+                 {                                                                                                                          +
+                     "name": "citext",                                                                                                      +
+                     "schema": null,                                                                                                        +
+                     "installed": false,                                                                                                    +
+                     "available_version": "1.6",                                                                                            +
+                     "installed_version": null                                                                                              +
+                 },                                                                                                                         +
+                 {                                                                                                                          +
+                     "name": "cube",                                                                                                        +
+                     "schema": null,                                                                                                        +
+                     "installed": false,                                                                                                    +
+                     "available_version": "1.5",                                                                                            +
+                     "installed_version": null                                                                                              +
+                 },                                                                                                                         +
+                 {                                                                                                                          +
+                     "name": "dblink",                                                                                                      +
+                     "schema": null,                                                                                                        +
+                     "installed": false,                                                                                                    +
+                     "available_version": "1.2",                                                                                            +
+                     "installed_version": null                                                                                              +
+                 },                                                                                                                         +
+                 {                                                                                                                          +
+                     "name": "dict_int",                                                                                                    +
+                     "schema": null,                                                                                                        +
+                     "installed": false,                                                                                                    +
+                     "available_version": "1.0",                                                                                            +
+                     "installed_version": null                                                                                              +
+                 },                                                                                                                         +
+                 {                                                                                                                          +
+                     "name": "dict_xsyn",                                                                                                   +
+                     "schema": null,                                                                                                        +
+                     "installed": false,                                                                                                    +
+                     "available_version": "1.0",                                                                                            +
+                     "installed_version": null                                                                                              +
+                 },                                                                                                                         +
+                 {                                                                                                                          +
+                     "name": "earthdistance",                                                                                               +
+                     "schema": null,                                                                                                        +
+                     "installed": false,                                                                                                    +
+                     "available_version": "1.1",                                                                                            +
+                     "installed_version": null                                                                                              +
+                 },                                                                                                                         +
+                 {                                                                                                                          +
+                     "name": "file_fdw",                                                                                                    +
+                     "schema": "minimal_test",                                                                                              +
+                     "installed": true,                                                                                                     +
+                     "available_version": "1.0",                                                                                            +
+                     "installed_version": "1.0"                                                                                             +
+                 },                                                                                                                         +
+                 {                                                                                                                          +
+                     "name": "fuzzystrmatch",                                                                                               +
+                     "schema": null,                                                                                                        +
+                     "installed": false,                                                                                                    +
+                     "available_version": "1.2",                                                                                            +
+                     "installed_version": null                                                                                              +
+                 },                                                                                                                         +
+                 {                                                                                                                          +
+                     "name": "hstore",                                                                                                      +
+                     "schema": null,                                                                                                        +
+                     "installed": false,                                                                                                    +
+                     "available_version": "1.8",                                                                                            +
+                     "installed_version": null                                                                                              +
+                 },                                                                                                                         +
+                 {                                                                                                                          +
+                     "name": "insert_username",                                                                                             +
+                     "schema": null,                                                                                                        +
+                     "installed": false,                                                                                                    +
+                     "available_version": "1.0",                                                                                            +
+                     "installed_version": null                                                                                              +
+                 },                                                                                                                         +
+                 {                                                                                                                          +
+                     "name": "intagg",                                                                                                      +
+                     "schema": null,                                                                                                        +
+                     "installed": false,                                                                                                    +
+                     "available_version": "1.1",                                                                                            +
+                     "installed_version": null                                                                                              +
+                 },                                                                                                                         +
+                 {                                                                                                                          +
+                     "name": "intarray",                                                                                                    +
+                     "schema": null,                                                                                                        +
+                     "installed": false,                                                                                                    +
+                     "available_version": "1.5",                                                                                            +
+                     "installed_version": null                                                                                              +
+                 },                                                                                                                         +
+                 {                                                                                                                          +
+                     "name": "isn",                                                                                                         +
+                     "schema": null,                                                                                                        +
+                     "installed": false,                                                                                                    +
+                     "available_version": "1.2",                                                                                            +
+                     "installed_version": null                                                                                              +
+                 },                                                                                                                         +
+                 {                                                                                                                          +
+                     "name": "lo",                                                                                                          +
+                     "schema": null,                                                                                                        +
+                     "installed": false,                                                                                                    +
+                     "available_version": "1.1",                                                                                            +
+                     "installed_version": null                                                                                              +
+                 },                                                                                                                         +
+                 {                                                                                                                          +
+                     "name": "ltree",                                                                                                       +
+                     "schema": null,                                                                                                        +
+                     "installed": false,                                                                                                    +
+                     "available_version": "1.2",                                                                                            +
+                     "installed_version": null                                                                                              +
+                 },                                                                                                                         +
+                 {                                                                                                                          +
+                     "name": "moddatetime",                                                                                                 +
+                     "schema": null,                                                                                                        +
+                     "installed": false,                                                                                                    +
+                     "available_version": "1.0",                                                                                            +
+                     "installed_version": null                                                                                              +
+                 },                                                                                                                         +
+                 {                                                                                                                          +
+                     "name": "old_snapshot",                                                                                                +
+                     "schema": null,                                                                                                        +
+                     "installed": false,                                                                                                    +
+                     "available_version": "1.0",                                                                                            +
+                     "installed_version": null                                                                                              +
+                 },                                                                                                                         +
+                 {                                                                                                                          +
+                     "name": "pageinspect",                                                                                                 +
+                     "schema": null,                                                                                                        +
+                     "installed": false,                                                                                                    +
+                     "available_version": "1.12",                                                                                           +
+                     "installed_version": null                                                                                              +
+                 },                                                                                                                         +
+                 {                                                                                                                          +
+                     "name": "pg_buffercache",                                                                                              +
+                     "schema": null,                                                                                                        +
+                     "installed": false,                                                                                                    +
+                     "available_version": "1.4",                                                                                            +
+                     "installed_version": null                                                                                              +
+                 },                                                                                                                         +
+                 {                                                                                                                          +
+                     "name": "pg_freespacemap",                                                                                             +
+                     "schema": null,                                                                                                        +
+                     "installed": false,                                                                                                    +
+                     "available_version": "1.2",                                                                                            +
+                     "installed_version": null                                                                                              +
+                 },                                                                                                                         +
+                 {                                                                                                                          +
+                     "name": "pg_prewarm",                                                                                                  +
+                     "schema": null,                                                                                                        +
+                     "installed": false,                                                                                                    +
+                     "available_version": "1.2",                                                                                            +
+                     "installed_version": null                                                                                              +
+                 },                                                                                                                         +
+                 {                                                                                                                          +
+                     "name": "pg_stat_statements",                                                                                          +
+                     "schema": null,                                                                                                        +
+                     "installed": false,                                                                                                    +
+                     "available_version": "1.10",                                                                                           +
+                     "installed_version": null                                                                                              +
+                 },                                                                                                                         +
+                 {                                                                                                                          +
+                     "name": "pg_surgery",                                                                                                  +
+                     "schema": null,                                                                                                        +
+                     "installed": false,                                                                                                    +
+                     "available_version": "1.0",                                                                                            +
+                     "installed_version": null                                                                                              +
+                 },                                                                                                                         +
+                 {                                                                                                                          +
+                     "name": "pg_trgm",                                                                                                     +
+                     "schema": null,                                                                                                        +
+                     "installed": false,                                                                                                    +
+                     "available_version": "1.6",                                                                                            +
+                     "installed_version": null                                                                                              +
+                 },                                                                                                                         +
+                 {                                                                                                                          +
+                     "name": "pg_visibility",                                                                                               +
+                     "schema": null,                                                                                                        +
+                     "installed": false,                                                                                                    +
+                     "available_version": "1.2",                                                                                            +
+                     "installed_version": null                                                                                              +
+                 },                                                                                                                         +
+                 {                                                                                                                          +
+                     "name": "pg_walinspect",                                                                                               +
+                     "schema": null,                                                                                                        +
+                     "installed": false,                                                                                                    +
+                     "available_version": "1.1",                                                                                            +
+                     "installed_version": null                                                                                              +
+                 },                                                                                                                         +
+                 {                                                                                                                          +
+                     "name": "pgrowlocks",                                                                                                  +
+                     "schema": null,                                                                                                        +
+                     "installed": false,                                                                                                    +
+                     "available_version": "1.2",                                                                                            +
+                     "installed_version": null                                                                                              +
+                 },                                                                                                                         +
+                 {                                                                                                                          +
+                     "name": "pgstattuple",                                                                                                 +
+                     "schema": null,                                                                                                        +
+                     "installed": false,                                                                                                    +
+                     "available_version": "1.5",                                                                                            +
+                     "installed_version": null                                                                                              +
+                 },                                                                                                                         +
+                 {                                                                                                                          +
+                     "name": "plpgsql",                                                                                                     +
+                     "schema": "pg_catalog",                                                                                                +
+                     "installed": true,                                                                                                     +
+                     "available_version": "1.0",                                                                                            +
+                     "installed_version": "1.0"                                                                                             +
+                 },                                                                                                                         +
+                 {                                                                                                                          +
+                     "name": "postgres_fdw",                                                                                                +
+                     "schema": null,                                                                                                        +
+                     "installed": false,                                                                                                    +
+                     "available_version": "1.1",                                                                                            +
+                     "installed_version": null                                                                                              +
+                 },                                                                                                                         +
+                 {                                                                                                                          +
+                     "name": "refint",                                                                                                      +
+                     "schema": null,                                                                                                        +
+                     "installed": false,                                                                                                    +
+                     "available_version": "1.0",                                                                                            +
+                     "installed_version": null                                                                                              +
+                 },                                                                                                                         +
+                 {                                                                                                                          +
+                     "name": "seg",                                                                                                         +
+                     "schema": null,                                                                                                        +
+                     "installed": false,                                                                                                    +
+                     "available_version": "1.4",                                                                                            +
+                     "installed_version": null                                                                                              +
+                 },                                                                                                                         +
+                 {                                                                                                                          +
+                     "name": "tablefunc",                                                                                                   +
+                     "schema": null,                                                                                                        +
+                     "installed": false,                                                                                                    +
+                     "available_version": "1.0",                                                                                            +
+                     "installed_version": null                                                                                              +
+                 },                                                                                                                         +
+                 {                                                                                                                          +
+                     "name": "tcn",                                                                                                         +
+                     "schema": null,                                                                                                        +
+                     "installed": false,                                                                                                    +
+                     "available_version": "1.0",                                                                                            +
+                     "installed_version": null                                                                                              +
+                 },                                                                                                                         +
+                 {                                                                                                                          +
+                     "name": "tsm_system_rows",                                                                                             +
+                     "schema": null,                                                                                                        +
+                     "installed": false,                                                                                                    +
+                     "available_version": "1.0",                                                                                            +
+                     "installed_version": null                                                                                              +
+                 },                                                                                                                         +
+                 {                                                                                                                          +
+                     "name": "tsm_system_time",                                                                                             +
+                     "schema": null,                                                                                                        +
+                     "installed": false,                                                                                                    +
+                     "available_version": "1.0",                                                                                            +
+                     "installed_version": null                                                                                              +
+                 },                                                                                                                         +
+                 {                                                                                                                          +
+                     "name": "unaccent",                                                                                                    +
+                     "schema": null,                                                                                                        +
+                     "installed": false,                                                                                                    +
+                     "available_version": "1.1",                                                                                            +
+                     "installed_version": null                                                                                              +
+                 }                                                                                                                          +
+             ]                                                                                                                              +
+         }                                                                                                                                  +
+     ]                                                                                                                                      +
+ }
+(1 row)
+
+rollback;

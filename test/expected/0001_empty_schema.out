@@ -1,0 +1,338 @@
+begin;
+    select jsonb_pretty(public.get_context());
+                   jsonb_pretty                    
+---------------------------------------------------
+ {                                                +
+     "databases": [                               +
+         {                                        +
+             "name": "contrib_regression",        +
+             "schemas": [                         +
+                 {                                +
+                     "name": "public",            +
+                     "types": [                   +
+                     ],                           +
+                     "views": [                   +
+                     ],                           +
+                     "tables": [                  +
+                     ],                           +
+                     "aggregates": [              +
+                     ],                           +
+                     "procedures": [              +
+                     ],                           +
+                     "foreign_tables": [          +
+                     ],                           +
+                     "trigger_functions": [       +
+                     ],                           +
+                     "materialized_views": [      +
+                     ]                            +
+                 }                                +
+             ],                                   +
+             "extensions": [                      +
+                 {                                +
+                     "name": "adminpack",         +
+                     "schema": null,              +
+                     "installed": false,          +
+                     "available_version": "2.1",  +
+                     "installed_version": null    +
+                 },                               +
+                 {                                +
+                     "name": "amcheck",           +
+                     "schema": null,              +
+                     "installed": false,          +
+                     "available_version": "1.3",  +
+                     "installed_version": null    +
+                 },                               +
+                 {                                +
+                     "name": "autoinc",           +
+                     "schema": null,              +
+                     "installed": false,          +
+                     "available_version": "1.0",  +
+                     "installed_version": null    +
+                 },                               +
+                 {                                +
+                     "name": "bloom",             +
+                     "schema": null,              +
+                     "installed": false,          +
+                     "available_version": "1.0",  +
+                     "installed_version": null    +
+                 },                               +
+                 {                                +
+                     "name": "btree_gin",         +
+                     "schema": null,              +
+                     "installed": false,          +
+                     "available_version": "1.3",  +
+                     "installed_version": null    +
+                 },                               +
+                 {                                +
+                     "name": "btree_gist",        +
+                     "schema": null,              +
+                     "installed": false,          +
+                     "available_version": "1.7",  +
+                     "installed_version": null    +
+                 },                               +
+                 {                                +
+                     "name": "citext",            +
+                     "schema": null,              +
+                     "installed": false,          +
+                     "available_version": "1.6",  +
+                     "installed_version": null    +
+                 },                               +
+                 {                                +
+                     "name": "cube",              +
+                     "schema": null,              +
+                     "installed": false,          +
+                     "available_version": "1.5",  +
+                     "installed_version": null    +
+                 },                               +
+                 {                                +
+                     "name": "dblink",            +
+                     "schema": null,              +
+                     "installed": false,          +
+                     "available_version": "1.2",  +
+                     "installed_version": null    +
+                 },                               +
+                 {                                +
+                     "name": "dict_int",          +
+                     "schema": null,              +
+                     "installed": false,          +
+                     "available_version": "1.0",  +
+                     "installed_version": null    +
+                 },                               +
+                 {                                +
+                     "name": "dict_xsyn",         +
+                     "schema": null,              +
+                     "installed": false,          +
+                     "available_version": "1.0",  +
+                     "installed_version": null    +
+                 },                               +
+                 {                                +
+                     "name": "earthdistance",     +
+                     "schema": null,              +
+                     "installed": false,          +
+                     "available_version": "1.1",  +
+                     "installed_version": null    +
+                 },                               +
+                 {                                +
+                     "name": "file_fdw",          +
+                     "schema": null,              +
+                     "installed": false,          +
+                     "available_version": "1.0",  +
+                     "installed_version": null    +
+                 },                               +
+                 {                                +
+                     "name": "fuzzystrmatch",     +
+                     "schema": null,              +
+                     "installed": false,          +
+                     "available_version": "1.2",  +
+                     "installed_version": null    +
+                 },                               +
+                 {                                +
+                     "name": "hstore",            +
+                     "schema": null,              +
+                     "installed": false,          +
+                     "available_version": "1.8",  +
+                     "installed_version": null    +
+                 },                               +
+                 {                                +
+                     "name": "insert_username",   +
+                     "schema": null,              +
+                     "installed": false,          +
+                     "available_version": "1.0",  +
+                     "installed_version": null    +
+                 },                               +
+                 {                                +
+                     "name": "intagg",            +
+                     "schema": null,              +
+                     "installed": false,          +
+                     "available_version": "1.1",  +
+                     "installed_version": null    +
+                 },                               +
+                 {                                +
+                     "name": "intarray",          +
+                     "schema": null,              +
+                     "installed": false,          +
+                     "available_version": "1.5",  +
+                     "installed_version": null    +
+                 },                               +
+                 {                                +
+                     "name": "isn",               +
+                     "schema": null,              +
+                     "installed": false,          +
+                     "available_version": "1.2",  +
+                     "installed_version": null    +
+                 },                               +
+                 {                                +
+                     "name": "lo",                +
+                     "schema": null,              +
+                     "installed": false,          +
+                     "available_version": "1.1",  +
+                     "installed_version": null    +
+                 },                               +
+                 {                                +
+                     "name": "ltree",             +
+                     "schema": null,              +
+                     "installed": false,          +
+                     "available_version": "1.2",  +
+                     "installed_version": null    +
+                 },                               +
+                 {                                +
+                     "name": "moddatetime",       +
+                     "schema": null,              +
+                     "installed": false,          +
+                     "available_version": "1.0",  +
+                     "installed_version": null    +
+                 },                               +
+                 {                                +
+                     "name": "old_snapshot",      +
+                     "schema": null,              +
+                     "installed": false,          +
+                     "available_version": "1.0",  +
+                     "installed_version": null    +
+                 },                               +
+                 {                                +
+                     "name": "pageinspect",       +
+                     "schema": null,              +
+                     "installed": false,          +
+                     "available_version": "1.12", +
+                     "installed_version": null    +
+                 },                               +
+                 {                                +
+                     "name": "pg_buffercache",    +
+                     "schema": null,              +
+                     "installed": false,          +
+                     "available_version": "1.4",  +
+                     "installed_version": null    +
+                 },                               +
+                 {                                +
+                     "name": "pg_freespacemap",   +
+                     "schema": null,              +
+                     "installed": false,          +
+                     "available_version": "1.2",  +
+                     "installed_version": null    +
+                 },                               +
+                 {                                +
+                     "name": "pg_prewarm",        +
+                     "schema": null,              +
+                     "installed": false,          +
+                     "available_version": "1.2",  +
+                     "installed_version": null    +
+                 },                               +
+                 {                                +
+                     "name": "pg_stat_statements",+
+                     "schema": null,              +
+                     "installed": false,          +
+                     "available_version": "1.10", +
+                     "installed_version": null    +
+                 },                               +
+                 {                                +
+                     "name": "pg_surgery",        +
+                     "schema": null,              +
+                     "installed": false,          +
+                     "available_version": "1.0",  +
+                     "installed_version": null    +
+                 },                               +
+                 {                                +
+                     "name": "pg_trgm",           +
+                     "schema": null,              +
+                     "installed": false,          +
+                     "available_version": "1.6",  +
+                     "installed_version": null    +
+                 },                               +
+                 {                                +
+                     "name": "pg_visibility",     +
+                     "schema": null,              +
+                     "installed": false,          +
+                     "available_version": "1.2",  +
+                     "installed_version": null    +
+                 },                               +
+                 {                                +
+                     "name": "pg_walinspect",     +
+                     "schema": null,              +
+                     "installed": false,          +
+                     "available_version": "1.1",  +
+                     "installed_version": null    +
+                 },                               +
+                 {                                +
+                     "name": "pgrowlocks",        +
+                     "schema": null,              +
+                     "installed": false,          +
+                     "available_version": "1.2",  +
+                     "installed_version": null    +
+                 },                               +
+                 {                                +
+                     "name": "pgstattuple",       +
+                     "schema": null,              +
+                     "installed": false,          +
+                     "available_version": "1.5",  +
+                     "installed_version": null    +
+                 },                               +
+                 {                                +
+                     "name": "plpgsql",           +
+                     "schema": "pg_catalog",      +
+                     "installed": true,           +
+                     "available_version": "1.0",  +
+                     "installed_version": "1.0"   +
+                 },                               +
+                 {                                +
+                     "name": "postgres_fdw",      +
+                     "schema": null,              +
+                     "installed": false,          +
+                     "available_version": "1.1",  +
+                     "installed_version": null    +
+                 },                               +
+                 {                                +
+                     "name": "refint",            +
+                     "schema": null,              +
+                     "installed": false,          +
+                     "available_version": "1.0",  +
+                     "installed_version": null    +
+                 },                               +
+                 {                                +
+                     "name": "seg",               +
+                     "schema": null,              +
+                     "installed": false,          +
+                     "available_version": "1.4",  +
+                     "installed_version": null    +
+                 },                               +
+                 {                                +
+                     "name": "tablefunc",         +
+                     "schema": null,              +
+                     "installed": false,          +
+                     "available_version": "1.0",  +
+                     "installed_version": null    +
+                 },                               +
+                 {                                +
+                     "name": "tcn",               +
+                     "schema": null,              +
+                     "installed": false,          +
+                     "available_version": "1.0",  +
+                     "installed_version": null    +
+                 },                               +
+                 {                                +
+                     "name": "tsm_system_rows",   +
+                     "schema": null,              +
+                     "installed": false,          +
+                     "available_version": "1.0",  +
+                     "installed_version": null    +
+                 },                               +
+                 {                                +
+                     "name": "tsm_system_time",   +
+                     "schema": null,              +
+                     "installed": false,          +
+                     "available_version": "1.0",  +
+                     "installed_version": null    +
+                 },                               +
+                 {                                +
+                     "name": "unaccent",          +
+                     "schema": null,              +
+                     "installed": false,          +
+                     "available_version": "1.1",  +
+                     "installed_version": null    +
+                 }                                +
+             ]                                    +
+         }                                        +
+     ]                                            +
+ }
+(1 row)
+
+rollback;
