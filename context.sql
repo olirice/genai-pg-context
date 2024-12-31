@@ -2,7 +2,7 @@ create function public.get_context()
     returns jsonb
     language sql
     volatile
-	set search_path = ''
+    set search_path = ''
 as $$
 
 select jsonb_build_object(
@@ -119,10 +119,10 @@ select jsonb_build_object(
                                             jsonb_build_object(
                                                 'name', c.relname,
                                                 'comment', pg_catalog.obj_description(c.oid, 'pg_class'),
-												'security_definer', (
-													lower(coalesce(c.reloptions::text,'{}'))::text[]
-													&& array['security_invoker=1', 'security_invoker=true', 'security_invoker=yes','security_invoker=on']
-												),
+                                                'security_definer', (
+                                                    lower(coalesce(c.reloptions::text,'{}'))::text[]
+                                                    && array['security_invoker=1', 'security_invoker=true', 'security_invoker=yes','security_invoker=on']
+                                                ),
                                                 'columns', coalesce(
                                                     (
                                                         select jsonb_agg(
@@ -272,45 +272,45 @@ select jsonb_build_object(
                                             jsonb_build_object(
                                                 'name', t.typname,
                                                 'comment', pg_catalog.obj_description(t.oid, 'pg_type'),
-												'type_kind', case t.typtype
-													when 'b' then 'base'
-													when 'c' then 'composite'
-													when 'd' then 'domain'
-													when 'e' then 'enum'
-													when 'r' then 'range'
-													when 'm' then 'multirange'
-													when 'p' then 'pseudo'
-													else 'unknown'
-												end,
-												'enum_variants', case
-													when t.typtype = 'e' then (
-														select jsonb_agg(e.enumlabel)
-														from pg_enum e
-														where e.enumtypid = t.oid
-													)
-													else '[]'::jsonb
-												end,
-												'domain_base_type', case
-													when t.typtype = 'd' then pg_catalog.format_type(t.typbasetype, t.typtypmod)
-													else null
-												end,
-												'domain_constraints', case
-													when t.typtype = 'd' then coalesce(
-														(
-															select jsonb_agg(
-																jsonb_build_object(
-																	'name', con.conname,
-																	'definition', pg_catalog.pg_get_constraintdef(con.oid)
-																)
-															)
-															from pg_constraint con
-															where con.contypid = t.oid
-														),
-														'[]'::jsonb
-													)
-													else '[]'::jsonb
-												end
-											)
+                                                'type_kind', case t.typtype
+                                                    when 'b' then 'base'
+                                                    when 'c' then 'composite'
+                                                    when 'd' then 'domain'
+                                                    when 'e' then 'enum'
+                                                    when 'r' then 'range'
+                                                    when 'm' then 'multirange'
+                                                    when 'p' then 'pseudo'
+                                                    else 'unknown'
+                                                end,
+                                                'enum_variants', case
+                                                    when t.typtype = 'e' then (
+                                                        select jsonb_agg(e.enumlabel)
+                                                        from pg_enum e
+                                                        where e.enumtypid = t.oid
+                                                    )
+                                                    else '[]'::jsonb
+                                                end,
+                                                'domain_base_type', case
+                                                    when t.typtype = 'd' then pg_catalog.format_type(t.typbasetype, t.typtypmod)
+                                                    else null
+                                                end,
+                                                'domain_constraints', case
+                                                    when t.typtype = 'd' then coalesce(
+                                                        (
+                                                            select jsonb_agg(
+                                                                jsonb_build_object(
+                                                                    'name', con.conname,
+                                                                    'definition', pg_catalog.pg_get_constraintdef(con.oid)
+                                                                )
+                                                            )
+                                                            from pg_constraint con
+                                                            where con.contypid = t.oid
+                                                        ),
+                                                        '[]'::jsonb
+                                                    )
+                                                    else '[]'::jsonb
+                                                end
+                                            )
                                         )
                                         from pg_type t
                                         where t.typnamespace = n.oid
