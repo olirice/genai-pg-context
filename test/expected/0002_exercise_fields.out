@@ -249,6 +249,13 @@ select jsonb_pretty(public.get_context());
                                  }                                                                                                                                                           +
                              ],                                                                                                                                                              +
                              "comment": "simple view of parent_table",                                                                                                                       +
+                             "dependencies": [                                                                                                                                               +
+                                 {                                                                                                                                                           +
+                                     "name": "parent_table",                                                                                                                                 +
+                                     "schema": "minimal_test",                                                                                                                               +
+                                     "entity_type": "table"                                                                                                                                  +
+                                 }                                                                                                                                                           +
+                             ],                                                                                                                                                              +
                              "security_definer": false                                                                                                                                       +
                          }                                                                                                                                                                   +
                      ],                                                                                                                                                                      +

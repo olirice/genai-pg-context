@@ -157,6 +157,46 @@ select jsonb_build_object(
                                                           and not pa.attisdropped
                                                     ),
                                                     '[]'::jsonb
+                                                ),
+                                                'dependencies', coalesce(
+                                                    (
+                                                        select
+                                                            jsonb_agg(
+                                                                jsonb_build_object(
+                                                                    'schema', schema_name,
+                                                                    'name', object_name,
+                                                                    'entity_type', object_type
+                                                                )
+                                                                order by schema_name, object_name
+                                                            ) as dependencies
+                                                        from (
+                                                            select distinct
+                                                                n2.nspname as schema_name,
+                                                                rc.relname as object_name,
+                                                                case rc.relkind
+                                                                    when 'r' then 'table'
+                                                                    when 'v' then 'view'
+                                                                    when 'm' then 'materialized view'
+                                                                    else rc.relkind::text
+                                                                end as object_type
+                                                            from pg_depend d
+                                                            join pg_rewrite r
+                                                                on d.objid = r.oid
+                                                            join pg_class c2
+                                                                on r.ev_class = c2.oid
+                                                            join pg_namespace n
+                                                                on c2.relnamespace = n.oid
+                                                            join pg_class rc
+                                                                on d.refobjid = rc.oid
+                                                            join pg_namespace n2
+                                                                on rc.relnamespace = n2.oid
+                                                            where c2.oid = c.oid
+                                                              and d.deptype = 'n'
+                                                              and rc.relkind in ('r','v','m') -- tables, views, matviews
+                                                              and rc.oid != c.oid -- Exclude the view itself from the results
+                                                        ) sub
+                                                    ),
+                                                    '[]'::jsonb
                                                 )
                                             )
                                         )
