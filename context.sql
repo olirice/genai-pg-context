@@ -104,6 +104,21 @@ select jsonb_build_object(
                                                           and pol.tablename = c.relname
                                                     ),
                                                     '[]'::jsonb
+                                                ),
+                                                'triggers', coalesce(
+                                                    (
+                                                        select jsonb_agg(
+                                                            jsonb_build_object(
+                                                                'name', t.tgname,
+                                                                'definition', pg_get_triggerdef(t.oid),
+                                                                'comment', pg_catalog.obj_description(t.oid, 'pg_trigger')
+                                                            ) order by t.tgname
+                                                        )
+                                                        from pg_trigger t
+                                                        where t.tgrelid = c.oid
+                                                          and not t.tgisinternal
+                                                    ),
+                                                    '[]'::jsonb
                                                 )
                                             )
                                         )
