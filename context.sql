@@ -20,6 +20,7 @@ select jsonb_build_object(
                                         select jsonb_agg(
                                             jsonb_build_object(
                                                 'name', c.relname,
+                                                'is_rls_enabled', c.relrowsecurity,
                                                 'comment', pg_catalog.obj_description(c.oid, 'pg_class'),
                                                 'columns', coalesce(
                                                     (
